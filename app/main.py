@@ -1,14 +1,60 @@
-from fastapi import FastAPI
-import uvicorn
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.orm import Session
+
+from app import crud, schemas
+from app.database import create_tables, get_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_tables()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
-def home():
-    return 'Hello World'
+def root():
+    return {"status": "ok"}
 
 
+@app.post("/expenses", response_model=schemas.ExpenseRead)
+def create_expense(
+    expense: schemas.ExpenseCreate,
+    db: Session = Depends(get_db),
+):
+    return crud.create_expense(
+        db=db,
+        user_id=expense.user_id,
+        title=expense.title,
+        amount=expense.amount,
+    )
 
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=5000, log_level="info", reload=True)
+@app.get("/expenses/{user_id}", response_model=list[schemas.ExpenseRead])
+def get_expenses(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    return crud.get_user_expenses(db=db, user_id=user_id)
+
+
+@app.delete("/expenses/{expense_id}")
+def delete_expense(
+    expense_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    deleted = crud.delete_expense(
+        db=db,
+        expense_id=expense_id,
+        user_id=user_id,
+    )
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    return {"status": "deleted"}
