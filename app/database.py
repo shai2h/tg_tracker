@@ -1,15 +1,39 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-load_dotenv()
+from app.models import Base
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env", override=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL не указан")
 
-async_session = async_sessionmaker(
+if "+asyncpg" in DATABASE_URL:
+    raise RuntimeError("Sync sqlalchemy проверьте DATABASE_URL postgresql+psycorg://")
+
+engine = create_engine(DATABASE_URL, echo=True)
+
+SessionLocal = sessionmaker(
     bind=engine,
-    expire_on_commit=False,
+    autoflush=False,
+    autocommit=False,
 )
+
+
+def create_tables():
+    Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
