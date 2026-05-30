@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Expense
 
-
+# паттерн "репозиторий" - я его очень люблю.
 def create_expense(
     db: Session,
     user_id: int,
@@ -41,6 +41,8 @@ def delete_expense(db: Session, expense_id: int, user_id: int) -> bool:
         .first()
     )
 
+    # возвращать тру или фолс это такое себе. Репозиторий может возвращать ошибки... Также эта функция делает два запроса к базе
+    # вместо одного, я бы сэкономил тут запрос.
     if expense is None:
         return False
 

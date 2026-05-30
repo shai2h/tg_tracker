@@ -32,6 +32,7 @@ def create_tables():
 
 
 def get_db():
+    # паттерн получения сесси 2 - генератор
     db = SessionLocal()
     try:
         yield db

@@ -56,6 +56,7 @@ async def add_expense(message: Message):
         return
 
     with SessionLocal() as db:
+        # синхронный код в асинхронной функции: надо либо async SQLAlchemy использовать, либо asyncio.to_thread()
         expense = crud.create_expense(
             db=db,
             user_id=user_id,
@@ -75,6 +76,7 @@ async def list_expenses(message: Message):
     user_id = message.from_user.id
 
     with SessionLocal() as db:
+        # паттерн получения сессии - 1
         expenses = crud.get_user_expenses(db=db, user_id=user_id)
 
     if not expenses:
@@ -93,6 +95,9 @@ async def main():
     create_tables()
     await dp.start_polling(bot)
 
-
+# бот - отдельный процесс, но я бы встроил его в ФастАПИ. Почему:
+# - два соедеинения с БД, секретики.
+# - деплой сложнее - надо запускать два процесса. Я бы использовал asynccontextmanager и lifespan
+# - к тому же на проде - это будут вебхуки которые органически должны жить в фаст АПИ
 if __name__ == "__main__":
     asyncio.run(main())

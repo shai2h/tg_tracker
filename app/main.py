@@ -41,18 +41,21 @@ def get_expenses(
 ):
     return crud.get_user_expenses(db=db, user_id=user_id)
 
-
+# описывать пути в мейн файле годится только для небольшого проекта, обычно пути описывают в отдельных файлах по модулям.
+#
 @app.delete("/expenses/{expense_id}")
 def delete_expense(
     expense_id: int,
     user_id: int,
     db: Session = Depends(get_db),
 ):
+    # а если я пошлю чужой user_id??? что будет?
     deleted = crud.delete_expense(
         db=db,
         expense_id=expense_id,
         user_id=user_id,
     )
+    # во первых 204 тут лучше подходит, во вторых "не найдено" только одна из ошибок.
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Expense not found")
