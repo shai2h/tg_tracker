@@ -28,11 +28,12 @@ SessionLocal = sessionmaker(
 
 
 def create_tables():
+    # обычно миграциями занимаются
     Base.metadata.create_all(bind=engine)
 
 
 def get_db():
-    # паттерн получения сесси 2 - генератор
+    # паттерн получения сесси 2 - генератор. это правильный Фаст АПИШный паттерн
     db = SessionLocal()
     try:
         yield db

@@ -44,7 +44,8 @@ def get_expenses(
 # описывать пути в мейн файле годится только для небольшого проекта, обычно пути описывают в отдельных файлах по модулям.
 #
 @app.delete("/expenses/{expense_id}")
-def delete_expense(
+async def delete_expense(
+    #  респонс схема через пидантик
     expense_id: int,
     user_id: int,
     db: Session = Depends(get_db),
@@ -60,4 +61,4 @@ def delete_expense(
     if not deleted:
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    return {"status": "deleted"}
+    return {"status": "deleted"} #204

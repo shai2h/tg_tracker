@@ -33,7 +33,7 @@ async def start(message: Message):
         "/list - показать мои расходы"
     )
 
-
+# бизнес-логику бота - надо выносить в "бот-сервис"
 @dp.message(Command("add"))
 async def add_expense(message: Message):
     if message.from_user is None:
@@ -76,7 +76,7 @@ async def list_expenses(message: Message):
     user_id = message.from_user.id
 
     with SessionLocal() as db:
-        # паттерн получения сессии - 1
+        # паттерн получения сессии - 1. Не лучший паттерн, применен потому, что бот - отдельный процесс. Когда вынесем это в фаст апи сервис - это будет через депендеси инжекшнс
         expenses = crud.get_user_expenses(db=db, user_id=user_id)
 
     if not expenses:
@@ -94,7 +94,7 @@ async def list_expenses(message: Message):
 async def main():
     create_tables()
     await dp.start_polling(bot)
-
+# надо сделать веб-хуки
 # бот - отдельный процесс, но я бы встроил его в ФастАПИ. Почему:
 # - два соедеинения с БД, секретики.
 # - деплой сложнее - надо запускать два процесса. Я бы использовал asynccontextmanager и lifespan
