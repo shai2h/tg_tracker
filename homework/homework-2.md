@@ -87,6 +87,10 @@ main.py должен остаться тонким — только инициа
 Перепиши .gitignore руками — только то что реально нужно проекту.
 Без автогенерированного шума на 200 строк.
 
+Переедь с pip freeze на uv. Удали requirements.txt, создай pyproject.toml с прямыми зависимостями.
+uv add fastapi aiogram sqlalchemy asyncpg python-dotenv
+uv add --dev ruff
+
 ---
 
 За пределами этой домашки — на следующий раз
