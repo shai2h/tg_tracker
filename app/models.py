@@ -14,8 +14,10 @@ class Expense(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False) # user_id telegram
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    # инт. для денег. риали?
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        # обычно использую default=
         server_default=func.now(),
     )
