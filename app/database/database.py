@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.expenses.models import Base
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env", override=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
