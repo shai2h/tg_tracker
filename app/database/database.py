@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base
+from app.expenses.models import Base
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env", override=True)
@@ -16,7 +16,7 @@ if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL не указан")
 
 if "+asyncpg" in DATABASE_URL:
-    raise RuntimeError("Sync sqlalchemy проверьте DATABASE_URL postgresql+psycorg://")
+    raise RuntimeError("Sync SQLAlchemy требует DATABASE_URL с postgresql+psycopg://")
 
 engine = create_engine(DATABASE_URL, echo=True)
 
