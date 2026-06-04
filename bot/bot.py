@@ -8,7 +8,7 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from app import crud
-from app.database import SessionLocal, create_tables
+from app.database.database import SessionLocal, create_tables
 
 
 BASE_DIR = Path(__file__).resolve().parent
