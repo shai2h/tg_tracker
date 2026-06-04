@@ -1,13 +1,14 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.expenses.models import Expense
 
 
 class ExpenseRepository:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create(
+    async def create(
         self,
         user_id: int,
         title: str,
@@ -20,37 +21,33 @@ class ExpenseRepository:
         )
 
         self.db.add(expense)
-        self.db.commit()
-        self.db.refresh(expense)
+        await self.db.commit()
+        await self.db.refresh(expense)
 
         return expense
 
-    def get_by_user_id(self, user_id: int) -> list[Expense]:
-        return (
-            self.db.query(Expense)
-            .filter(Expense.user_id == user_id)
+    async def get_by_user_id(self, user_id: int) -> list[Expense]:
+        stmt = (
+            select(Expense)
+            .where(Expense.user_id == user_id)
             .order_by(Expense.created_at.desc())
-            .all()
         )
 
-    def delete_by_id_and_user_id(
+        result = await self.db.execute(stmt)
+
+        return list(result.scalars().all())
+
+    async def delete_by_id_and_user_id(
         self,
         expense_id: int,
         user_id: int,
     ) -> bool:
-        expense = (
-            self.db.query(Expense)
-            .filter(
-                Expense.id == expense_id,
-                Expense.user_id == user_id,
-            )
-            .first()
+        stmt = delete(Expense).where(
+            Expense.id == expense_id,
+            Expense.user_id == user_id,
         )
 
-        if expense is None:
-            return False
+        result = await self.db.execute(stmt)
+        await self.db.commit()
 
-        self.db.delete(expense)
-        self.db.commit()
-
-        return True
+        return result.rowcount > 0

@@ -33,7 +33,7 @@ DATABASE_URL=postgresql+psycopg://admin:your_password@127.0.0.1:5432/tracker
 BOT_TOKEN=your_bot_token
 ```
 
-## Переменные окружения
+## Поднять PostgreSQL
 ```bash
 docker compose up -d
 ```

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.database import get_db
 from app.expenses import schemas
@@ -9,13 +9,13 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 
 @router.post("", response_model=schemas.ExpenseRead)
-def create_expense(
+async def create_expense(
     expense: schemas.ExpenseCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     repository = ExpenseRepository(db)
 
-    return repository.create(
+    return await repository.create(
         user_id=expense.user_id,
         title=expense.title,
         amount=expense.amount,
@@ -23,24 +23,24 @@ def create_expense(
 
 
 @router.get("/{user_id}", response_model=list[schemas.ExpenseRead])
-def get_expenses(
+async def get_expenses(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     repository = ExpenseRepository(db)
 
-    return repository.get_by_user_id(user_id=user_id)
+    return await repository.get_by_user_id(user_id=user_id)
 
 
 @router.delete("/{expense_id}")
-def delete_expense(
+async def delete_expense(
     expense_id: int,
     user_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     repository = ExpenseRepository(db)
 
-    deleted = repository.delete_by_id_and_user_id(
+    deleted = await repository.delete_by_id_and_user_id(
         expense_id=expense_id,
         user_id=user_id,
     )
