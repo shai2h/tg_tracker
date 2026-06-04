@@ -8,7 +8,7 @@ from app.expenses.controller import router as expenses_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_tables()
+    await create_tables()
     yield
 
 
@@ -18,5 +18,5 @@ app.include_router(expenses_router)
 
 
 @app.get("/")
-def root():
+async def root():
     return {"status": "ok"}
