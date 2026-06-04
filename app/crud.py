@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.models import Expense
+from app.expenses.models import Expense
 
 
 def create_expense(
