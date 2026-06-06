@@ -1,22 +1,18 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
+import uvicorn
 
-from app.database.database import create_tables
-from app.expenses.controller import router as expenses_router
+import sys
+from pathlib import Path
 
+sys.path.append(str(Path(__file__).parent.parent))
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await create_tables()
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
-
-app.include_router(expenses_router)
+from app.expenses.router import router as router_expenses
 
 
-@app.get("/")
-async def root():
-    return {"status": "ok"}
+app = FastAPI()
+
+app.include_router(router_expenses)
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8001)
