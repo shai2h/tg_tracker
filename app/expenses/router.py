@@ -40,7 +40,7 @@ async def get_user_expenses(
     return [to_read(expense) for expense in expenses]
 
 
-@router.patch("/{expense_id}")
+@router.put("/{expense_id}", response_model=ExpenseRead)
 async def update_expense(
     expense_id: UUID,
     data: ExpenseUpdate,
