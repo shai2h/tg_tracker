@@ -32,11 +32,18 @@ async def create_expense(
 
 @router.get("/user/{user_id}", response_model=list[ExpenseRead])
 async def get_user_expenses(
-    user_id: int,
+    user_id: UUID,
+    limit: int = 20,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db),
 ):
     service = ExpenseService(session)
-    expenses = await service.get_by_user_id(user_id)
+    expenses = await service.get_by_user_id(
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+    )
+
     return [to_read(expense) for expense in expenses]
 
 
@@ -55,15 +62,20 @@ async def update_expense(
     return to_read(expense)
 
 
-@router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{expense_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_expense(
     expense_id: UUID,
     session: AsyncSession = Depends(get_db),
 ):
     service = ExpenseService(session)
-    deleted = await service.delete(expense_id)
 
-    if not deleted:
+    deleted_id = await service.delete(expense_id)
+
+    if deleted_id is None:
         raise HTTPException(status_code=404, detail="Expense not found")
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

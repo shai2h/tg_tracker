@@ -17,8 +17,12 @@ class ExpenseService:
             amount_kopeiki=data.amount_rubles * 100,
         )
 
-    async def get_by_user_id(self, user_id: int):
-        return await self.repository.get_by_user_id(user_id)
+    async def get_by_user_id(self, user_id: UUID, limit: int, offset: int,):
+        return await self.repository.get_by_user_id(
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def update(self, expense_id: UUID, data: ExpenseUpdate):
         amount_kopeiki = None

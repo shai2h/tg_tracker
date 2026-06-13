@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_PORT: int
 
+    DB_ECHO: bool = False
+
     @property
     def DB_URL(self) -> str:
         return (

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.expenses.models import ExpenseOrm
@@ -10,7 +10,7 @@ class ExpenseRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, user_id: int, title: str, amount_kopeiki: int):
+    async def create(self, user_id: UUID, title: str, amount_kopeiki: int):
         expense = ExpenseOrm(
             user_id=user_id,
             title=title,
@@ -18,16 +18,23 @@ class ExpenseRepository:
         )
 
         self.session.add(expense)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(expense)
 
         return expense
 
-    async def get_by_user_id(self, user_id: int):
+    async def get_by_user_id(
+        self,
+        user_id: UUID,
+        limit: int,
+        offset: int,
+    ):
         stmt = (
             select(ExpenseOrm)
             .where(ExpenseOrm.user_id == user_id)
             .order_by(ExpenseOrm.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
 
         result = await self.session.execute(stmt)
@@ -39,30 +46,33 @@ class ExpenseRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def update(self, expense_id: UUID, title: str | None, amount_kopeiki: int | None):
-        expense = await self.get_by_id(expense_id)
+    async def update(
+        self,
+        expense_id: UUID,
+        title: str,
+        amount_kopeiki: int,
+    ):
+        stmt = (
+            update(ExpenseOrm)
+            .where(ExpenseOrm.id == expense_id)
+            .values(
+                title=title,
+                amount_kopeiki=amount_kopeiki,
+            )
+            .returning(ExpenseOrm)
+        )
 
-        if expense is None:
-            return None
+        result = await self.session.execute(stmt)
 
-        if title is not None:
-            expense.title = title
-
-        if amount_kopeiki is not None:
-            expense.amount_kopeiki = amount_kopeiki
-
-        await self.session.commit()
-        await self.session.refresh(expense)
-
-        return expense
+        return result.scalar_one_or_none()
 
     async def delete(self, expense_id: UUID):
-        expense = await self.get_by_id(expense_id)
+        stmt = (
+            delete(ExpenseOrm)
+            .where(ExpenseOrm.id == expense_id)
+            .returning(ExpenseOrm.id)
+        )
 
-        if expense is None:
-            return False
+        result = await self.session.execute(stmt)
 
-        await self.session.delete(expense)
-        await self.session.commit()
-
-        return True
+        return result.scalar_one_or_none()
