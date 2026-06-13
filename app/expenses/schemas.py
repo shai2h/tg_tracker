@@ -11,8 +11,8 @@ class ExpenseCreate(BaseModel):
 
 
 class ExpenseUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=255)
-    amount_rubles: int | None = Field(default=None, gt=0)
+    title: str = Field(min_length=1, max_length=255)
+    amount_rubles: int = Field(gt=0)
 
 
 class ExpenseRead(BaseModel):
