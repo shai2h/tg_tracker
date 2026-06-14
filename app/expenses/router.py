@@ -1,11 +1,10 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.expenses.schemas import ExpenseCreate, ExpenseRead, ExpenseUpdate
 from app.expenses.service import ExpenseService
+from app.expenses.dependencies import get_expense_service
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -23,9 +22,8 @@ def to_read(expense) -> ExpenseRead:
 @router.post("", response_model=ExpenseRead, status_code=status.HTTP_201_CREATED)
 async def create_expense(
     data: ExpenseCreate,
-    session: AsyncSession = Depends(get_db),
+    service: ExpenseService = Depends(get_expense_service),
 ):
-    service = ExpenseService(session)
     expense = await service.create(data)
     return to_read(expense)
 
@@ -35,9 +33,8 @@ async def get_user_expenses(
     user_id: UUID,
     limit: int = 20,
     offset: int = 0,
-    session: AsyncSession = Depends(get_db),
+    service: ExpenseService = Depends(get_expense_service),
 ):
-    service = ExpenseService(session)
     expenses = await service.get_by_user_id(
         user_id=user_id,
         limit=limit,
@@ -51,9 +48,8 @@ async def get_user_expenses(
 async def update_expense(
     expense_id: UUID,
     data: ExpenseUpdate,
-    session: AsyncSession = Depends(get_db),
+    service: ExpenseService = Depends(get_expense_service),
 ):
-    service = ExpenseService(session)
     expense = await service.update(expense_id, data)
 
     if expense is None:
@@ -69,10 +65,8 @@ async def update_expense(
 )
 async def delete_expense(
     expense_id: UUID,
-    session: AsyncSession = Depends(get_db),
+    service: ExpenseService = Depends(get_expense_service),
 ):
-    service = ExpenseService(session)
-
     deleted_id = await service.delete(expense_id)
 
     if deleted_id is None:
