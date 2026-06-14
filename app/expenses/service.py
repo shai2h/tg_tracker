@@ -1,14 +1,12 @@
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.expenses.repository import ExpenseRepository
 from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
 
 
 class ExpenseService:
-    def __init__(self, session: AsyncSession):
-        self.repository = ExpenseRepository(session)
+    def __init__(self, repository: ExpenseRepository):
+        self.repository = repository
 
     async def create(self, data: ExpenseCreate):
         return await self.repository.create(
@@ -17,7 +15,12 @@ class ExpenseService:
             amount_kopeiki=data.amount_rubles * 100,
         )
 
-    async def get_by_user_id(self, user_id: UUID, limit: int, offset: int,):
+    async def get_by_user_id(
+        self,
+        user_id: UUID,
+        limit: int,
+        offset: int,
+    ):
         return await self.repository.get_by_user_id(
             user_id=user_id,
             limit=limit,
@@ -25,15 +28,10 @@ class ExpenseService:
         )
 
     async def update(self, expense_id: UUID, data: ExpenseUpdate):
-        amount_kopeiki = None
-
-        if data.amount_rubles is not None:
-            amount_kopeiki = data.amount_rubles * 100
-
         return await self.repository.update(
             expense_id=expense_id,
             title=data.title,
-            amount_kopeiki=amount_kopeiki,
+            amount_kopeiki=data.amount_rubles * 100,
         )
 
     async def delete(self, expense_id: UUID):
