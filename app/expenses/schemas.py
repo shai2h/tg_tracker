@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 
 
 class ExpenseCreate(BaseModel):
-    user_id: int
+    telegram_id: int
+    username: str | None = None
     title: str = Field(min_length=1, max_length=255)
     amount_rubles: int = Field(gt=0)
 
