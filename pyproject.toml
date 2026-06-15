@@ -21,3 +21,6 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.15.16",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
