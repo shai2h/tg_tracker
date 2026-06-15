@@ -2,9 +2,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
+from app.expenses.dependencies import get_expense_service
+from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.schemas import ExpenseCreate, ExpenseRead, ExpenseUpdate
 from app.expenses.service import ExpenseService
-from app.expenses.dependencies import get_expense_service
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -13,6 +14,7 @@ def to_read(expense) -> ExpenseRead:
     return ExpenseRead(
         id=expense.id,
         user_id=expense.user_id,
+        category=expense.category,
         title=expense.title,
         amount_rubles=expense.amount_kopeiki / 100,
         created_at=expense.created_at,
@@ -50,9 +52,9 @@ async def update_expense(
     data: ExpenseUpdate,
     service: ExpenseService = Depends(get_expense_service),
 ):
-    expense = await service.update(expense_id, data)
-
-    if expense is None:
+    try:
+        expense = await service.update(expense_id, data)
+    except ExpenseNotFoundError:
         raise HTTPException(status_code=404, detail="Expense not found")
 
     return to_read(expense)
@@ -67,9 +69,9 @@ async def delete_expense(
     expense_id: UUID,
     service: ExpenseService = Depends(get_expense_service),
 ):
-    deleted_id = await service.delete(expense_id)
-
-    if deleted_id is None:
+    try:
+        await service.delete(expense_id)
+    except ExpenseNotFoundError:
         raise HTTPException(status_code=404, detail="Expense not found")
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
