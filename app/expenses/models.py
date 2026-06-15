@@ -57,6 +57,11 @@ class ExpenseOrm(Base):
         index=True,
     )
 
+    category: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
     title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
