@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, BigInteger, DateTime, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -12,7 +11,7 @@ class UserOrm(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         primary_key=True,
         default=uuid.uuid4,
     )
@@ -45,13 +44,13 @@ class ExpenseOrm(Base):
     __tablename__ = "expenses"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         primary_key=True,
         default=uuid.uuid4,
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
