@@ -9,8 +9,13 @@ class ExpenseService:
         self.repository = repository
 
     async def create(self, data: ExpenseCreate):
+        user = await self.repository.get_or_create_user(
+            telegram_id=data.telegram_id,
+            username=data.username,
+        )
+
         return await self.repository.create(
-            user_id=data.user_id,
+            user_id=user.id,
             title=data.title,
             amount_kopeiki=data.amount_rubles * 100,
         )

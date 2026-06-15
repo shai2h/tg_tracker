@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.expenses.models import ExpenseOrm
+from app.expenses.models import ExpenseOrm, UserOrm
 
 
 class ExpenseRepository:
@@ -76,3 +76,43 @@ class ExpenseRepository:
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
+    
+    async def get_user_by_telegram_id(self, telegram_id: int):
+        stmt = select(UserOrm).where(UserOrm.telegram_id == telegram_id)
+
+        result = await self.session.execute(stmt)
+
+        return result.scalar_one_or_none()
+
+
+    async def create_user(
+        self,
+        telegram_id: int,
+        username: str | None,
+    ):
+        user = UserOrm(
+            telegram_id=telegram_id,
+            username=username,
+        )
+
+        self.session.add(user)
+        await self.session.flush()
+        await self.session.refresh(user)
+
+        return user
+
+
+    async def get_or_create_user(
+        self,
+        telegram_id: int,
+        username: str | None,
+    ):
+        user = await self.get_user_by_telegram_id(telegram_id)
+
+        if user is not None:
+            return user
+
+        return await self.create_user(
+            telegram_id=telegram_id,
+            username=username,
+        )
