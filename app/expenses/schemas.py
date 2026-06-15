@@ -21,6 +21,7 @@ class ExpenseUpdate(BaseModel):
 class ExpenseRead(BaseModel):
     id: UUID
     user_id: UUID
+    category: str | None = None
     title: str
     amount_rubles: Decimal
     created_at: datetime

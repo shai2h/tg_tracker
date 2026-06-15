@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.repository import ExpenseRepository
 from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
 
@@ -17,7 +18,7 @@ class ExpenseService:
         return await self.repository.create(
             user_id=user.id,
             title=data.title,
-            amount_kopeiki=data.amount_rubles * 100,
+            amount_kopeiki=int(data.amount_rubles * 100),
         )
 
     async def get_by_user_id(
@@ -33,11 +34,21 @@ class ExpenseService:
         )
 
     async def update(self, expense_id: UUID, data: ExpenseUpdate):
-        return await self.repository.update(
+        expense = await self.repository.update(
             expense_id=expense_id,
             title=data.title,
-            amount_kopeiki=data.amount_rubles * 100,
+            amount_kopeiki=int(data.amount_rubles * 100),
         )
 
+        if expense is None:
+            raise ExpenseNotFoundError
+
+        return expense
+
     async def delete(self, expense_id: UUID):
-        return await self.repository.delete(expense_id)
+        deleted_id = await self.repository.delete(expense_id)
+
+        if deleted_id is None:
+            raise ExpenseNotFoundError
+
+        return deleted_id
