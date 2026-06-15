@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.db.base import Base
-from app.expenses.models import ExpenseOrm
+from app.expenses.models import ExpenseOrm, UserOrm
 
 from app.db.session import settings
 
