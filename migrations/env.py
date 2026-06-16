@@ -8,12 +8,13 @@ from alembic import context
 from app.db.base import Base
 from app.expenses.models import ExpenseOrm, UserOrm
 
-from app.db.session import settings
+from app.core.config import get_settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
+settings = get_settings()
 config.set_main_option("sqlalchemy.url", f"{settings.DB_URL}?async_fallback=True")
 
 # Interpret the config file for Python logging.
