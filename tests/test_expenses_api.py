@@ -16,6 +16,8 @@ async def test_create_and_read_expense(client):
     created = response.json()
     assert created["title"] == "coffee"
     assert Decimal(str(created["amount_rubles"])) == Decimal("150.50")
+    # missing asserts:
+    # telegram_id is returned
     assert created["category"] is None
 
     list_response = await client.get(f"/expenses/user/{created['user_id']}")
@@ -25,6 +27,9 @@ async def test_create_and_read_expense(client):
     assert expenses[0]["id"] == created["id"]
     assert expenses[0]["title"] == "coffee"
 
+# missing test: if we send "amount_rubles": 150,50 - it should throw (400)
+# missing understanding: what is username???
+# what is user_id ans how it corelates with telegram_id.
 
 async def test_update_expense(client):
     create_response = await client.post(
