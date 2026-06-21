@@ -8,7 +8,3 @@ services:
       - ${APP_ENV_FILE:-.env.dev}
     ports:
       - "8000:8000"
-
-  bot:
-    env_file:
-      - ${APP_ENV_FILE:-.env.dev}

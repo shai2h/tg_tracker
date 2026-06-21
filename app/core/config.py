@@ -16,9 +16,6 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
 
     BOT_TOKEN: str
-    API_BASE_URL: str = "http://api:8000"
-
-    BOT_API_TOKEN: str
 
     @property
     def DB_URL(self) -> str:

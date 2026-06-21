@@ -1,7 +1,6 @@
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.db.base import Base
 from app.db.session import get_db
@@ -18,7 +17,7 @@ async def db_session_factory():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    session_factory = sessionmaker(
+    session_factory = async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
@@ -30,12 +29,7 @@ async def db_session_factory():
 
 
 @pytest_asyncio.fixture
-async def client(db_session_factory, monkeypatch):
-    class TestSettings:
-        BOT_API_TOKEN = "test-bot-api-token"
-
-    monkeypatch.setattr("app.core.security.get_settings", lambda: TestSettings())
-
+async def client(db_session_factory):
     async def override_get_db():
         async with db_session_factory() as session:
             try:

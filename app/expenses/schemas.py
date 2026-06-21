@@ -32,6 +32,3 @@ class ExpenseRead(BaseModel):
         return Decimal(self.amount_kopeiki) / Decimal(100)
 
 
-class ExpenseBotCreate(ExpenseCreate):
-    telegram_id: int = Field(gt=0)
-    username: str | None = Field(default=None, max_length=255)
