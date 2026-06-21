@@ -3,7 +3,7 @@ from uuid import UUID
 
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, computed_field
 
 
 class ExpenseCreate(BaseModel):
@@ -23,7 +23,12 @@ class ExpenseRead(BaseModel):
     user_id: UUID
     category: str | None = None
     title: str
-    amount_rubles: Decimal
+    amount_kopeiki: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def amount_rubles(self) -> Decimal:
+        return Decimal(self.amount_kopeiki) / Decimal(100)
