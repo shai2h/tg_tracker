@@ -11,12 +11,20 @@ from app.expenses.service import ExpenseService
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 
-@router.post("", response_model=ExpenseRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ExpenseRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_expense(
+    user_id: UUID,
     data: ExpenseCreate,
     service: ExpenseService = Depends(get_expense_service),
 ):
-    return await service.create(data)
+    return await service.create_for_user(
+        user_id=user_id,
+        data=data,
+    )
 
 
 @router.get("/user/{user_id}", response_model=list[ExpenseRead])
