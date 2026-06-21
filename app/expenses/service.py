@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.repository import ExpenseRepository
-from app.expenses.schemas import ExpenseCreate, ExpenseUpdate, ExpenseBotCreate
+from app.expenses.schemas import ExpenseUpdate, ExpenseBotCreate
 
 
 class ExpenseService:
@@ -12,17 +12,6 @@ class ExpenseService:
 
     def _rubles_to_kopeiki(self, amount_rubles: Decimal) -> int:
         return int(amount_rubles * 100)
-
-    async def create_for_user(
-        self,
-        user_id: UUID,
-        data: ExpenseCreate,
-    ):
-        return await self.repository.create(
-            user_id=user_id,
-            title=data.title,
-            amount_kopeiki=self._rubles_to_kopeiki(data.amount_rubles),
-        )
 
     async def create_from_bot(self, data: ExpenseBotCreate):
         user = await self.repository.get_or_create_user(
