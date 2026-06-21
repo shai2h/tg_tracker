@@ -17,7 +17,7 @@ class ExpenseUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     amount_rubles: Decimal = Field(gt=0, decimal_places=2)
 
-
+# ExpenseRead теперь сам берёт поля из ORM и считает amount_rubles через @computed_field
 class ExpenseRead(BaseModel):
     id: UUID
     user_id: UUID
