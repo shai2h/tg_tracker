@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.db.base import Base
-from app.expenses.models import ExpenseOrm, UserOrm
+from app.expenses.models import ExpenseOrm, UserOrm  # noqa: F401
 
 from app.core.config import get_settings
 
