@@ -7,8 +7,6 @@ from pydantic import BaseModel, Field, ConfigDict, computed_field
 
 
 class ExpenseCreate(BaseModel):
-    telegram_id: int
-    username: str | None = None
     title: str = Field(min_length=1, max_length=255)
     amount_rubles: Decimal = Field(gt=0, decimal_places=2)
 
@@ -32,3 +30,8 @@ class ExpenseRead(BaseModel):
     @property
     def amount_rubles(self) -> Decimal:
         return Decimal(self.amount_kopeiki) / Decimal(100)
+
+
+class ExpenseBotCreate(ExpenseCreate):
+    telegram_id: int = Field(gt=0)
+    username: str | None = Field(default=None, max_length=255)
