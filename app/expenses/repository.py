@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.expenses.models import ExpenseOrm, UserOrm
@@ -89,16 +90,20 @@ class ExpenseRepository:
         telegram_id: int,
         username: str | None,
     ):
-        user = UserOrm(
-            telegram_id=telegram_id,
-            username=username,
-        )
+        try:
+            user = UserOrm(
+                telegram_id=telegram_id,
+                username=username,
+            )
 
-        self.session.add(user)
-        await self.session.flush()
-        await self.session.refresh(user)
+            self.session.add(user)
+            await self.session.flush()
+            await self.session.refresh(user)
 
-        return user
+            return user
+        except IntegrityError:
+            user = await self.get_user_by_telegram_id(telegram_id)
+            return user
 
     async def get_or_create_user(
         self,
