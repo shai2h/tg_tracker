@@ -7,18 +7,8 @@ from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.schemas import ExpenseCreate, ExpenseRead, ExpenseUpdate
 from app.expenses.service import ExpenseService
 
+
 router = APIRouter(prefix="/expenses", tags=["expenses"])
-
-
-def to_read(expense) -> ExpenseRead:
-    return ExpenseRead(
-        id=expense.id,
-        user_id=expense.user_id,
-        category=expense.category,
-        title=expense.title,
-        amount_rubles=expense.amount_kopeiki / 100,
-        created_at=expense.created_at,
-    )
 
 
 @router.post("", response_model=ExpenseRead, status_code=status.HTTP_201_CREATED)
@@ -26,8 +16,7 @@ async def create_expense(
     data: ExpenseCreate,
     service: ExpenseService = Depends(get_expense_service),
 ):
-    expense = await service.create(data)
-    return to_read(expense)
+    return await service.create(data)
 
 
 @router.get("/user/{user_id}", response_model=list[ExpenseRead])
@@ -37,13 +26,11 @@ async def get_user_expenses(
     offset: int = 0,
     service: ExpenseService = Depends(get_expense_service),
 ):
-    expenses = await service.get_by_user_id(
+    return await service.get_by_user_id(
         user_id=user_id,
         limit=limit,
         offset=offset,
     )
-
-    return [to_read(expense) for expense in expenses]
 
 
 @router.put("/{expense_id}", response_model=ExpenseRead)
@@ -53,11 +40,9 @@ async def update_expense(
     service: ExpenseService = Depends(get_expense_service),
 ):
     try:
-        expense = await service.update(expense_id, data)
+        return await service.update(expense_id, data)
     except ExpenseNotFoundError:
         raise HTTPException(status_code=404, detail="Expense not found")
-
-    return to_read(expense)
 
 
 @router.delete(
