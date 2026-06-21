@@ -76,14 +76,13 @@ class ExpenseRepository:
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
-    
+
     async def get_user_by_telegram_id(self, telegram_id: int):
         stmt = select(UserOrm).where(UserOrm.telegram_id == telegram_id)
 
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
-
 
     async def create_user(
         self,
@@ -101,7 +100,6 @@ class ExpenseRepository:
 
         return user
 
-
     async def get_or_create_user(
         self,
         telegram_id: int,
@@ -110,6 +108,10 @@ class ExpenseRepository:
         user = await self.get_user_by_telegram_id(telegram_id)
 
         if user is not None:
+            if username and user.username != username:
+                user.username = username
+                await self.session.flush()
+                await self.session.refresh(user)
             return user
 
         return await self.create_user(
