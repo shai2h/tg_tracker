@@ -9,7 +9,7 @@ from app.main import app
 
 
 @pytest_asyncio.fixture
-async def client():
+async def db_session_factory():
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -18,14 +18,26 @@ async def client():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    TestingSessionLocal = sessionmaker(
+    session_factory = sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
 
+    yield session_factory
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def client(db_session_factory, monkeypatch):
+    class TestSettings:
+        BOT_API_TOKEN = "test-bot-api-token"
+
+    monkeypatch.setattr("app.core.security.get_settings", lambda: TestSettings())
+
     async def override_get_db():
-        async with TestingSessionLocal() as session:
+        async with db_session_factory() as session:
             try:
                 yield session
                 await session.commit()
@@ -44,5 +56,3 @@ async def client():
         yield ac
 
     app.dependency_overrides.clear()
-
-    await engine.dispose()
