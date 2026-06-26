@@ -5,7 +5,13 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.base import Base
 from app.db.session import get_db
+from app.expenses.dependencies import get_expense_category_classifier
 from app.main import app
+
+
+class NoOpClassifier:
+    async def classify(self, title: str) -> None:
+        return None
 
 
 @pytest_asyncio.fixture
@@ -46,6 +52,7 @@ async def client(db_session_factory, monkeypatch):
                 raise
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_expense_category_classifier] = lambda: NoOpClassifier()
 
     transport = ASGITransport(app=app)
 
