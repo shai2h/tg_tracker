@@ -37,6 +37,23 @@ class ExpenseService:
             offset=offset,
         )
 
+    async def get_by_telegram_id(
+        self,
+        telegram_id: int,
+        limit: int,
+        offset: int,
+    ):
+        user = await self.repository.get_user_by_telegram_id(telegram_id)
+
+        if user is None:
+            return []
+
+        return await self.repository.get_by_user_id(
+            user_id=user.id,
+            limit=limit,
+            offset=offset,
+        )
+
     async def update(self, expense_id: UUID, data: ExpenseUpdate):
         expense = await self.repository.update(
             expense_id=expense_id,

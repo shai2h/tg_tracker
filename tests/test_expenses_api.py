@@ -51,6 +51,25 @@ async def create_expense_from_bot(
     return response
 
 
+async def get_expenses_for_bot(
+    client,
+    *,
+    telegram_id: int = 1,
+    limit: int = 10,
+    offset: int = 0,
+    headers: dict[str, str] | None = None,
+):
+    return await client.get(
+        "/bot/expenses",
+        params={
+            "telegram_id": telegram_id,
+            "limit": limit,
+            "offset": offset,
+        },
+        headers=headers,
+    )
+
+
 async def test_public_create_expense_endpoint_is_removed(client):
     response = await client.post(
         "/expenses",
@@ -159,6 +178,111 @@ async def test_bot_create_expense_with_invalid_authorization_returns_401(client)
     )
 
     assert response.status_code == 401
+
+
+async def test_bot_get_expenses_without_authorization_returns_401(client):
+    response = await get_expenses_for_bot(client)
+
+    assert response.status_code == 401
+
+
+async def test_bot_get_expenses_with_invalid_authorization_returns_401(client):
+    response = await get_expenses_for_bot(
+        client,
+        headers={"Authorization": "Bearer wrong-token"},
+    )
+
+    assert response.status_code == 401
+
+
+async def test_bot_get_expenses_for_unknown_telegram_id_returns_empty_list(client):
+    response = await get_expenses_for_bot(
+        client,
+        telegram_id=404,
+        headers=bot_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_bot_get_expenses_returns_current_telegram_user_expenses_only(client):
+    coffee_response = await create_expense_from_bot(
+        client,
+        telegram_id=100,
+        title="coffee",
+        amount_rubles="150.00",
+    )
+    taxi_response = await create_expense_from_bot(
+        client,
+        telegram_id=100,
+        title="taxi",
+        amount_rubles="250.50",
+    )
+    await create_expense_from_bot(
+        client,
+        telegram_id=200,
+        title="lunch",
+        amount_rubles="500.00",
+    )
+
+    response = await get_expenses_for_bot(
+        client,
+        telegram_id=100,
+        headers=bot_headers(),
+    )
+
+    assert response.status_code == 200
+    expenses = response.json()
+    assert len(expenses) == 2
+    assert {expense["id"] for expense in expenses} == {
+        coffee_response.json()["id"],
+        taxi_response.json()["id"],
+    }
+    assert {expense["title"] for expense in expenses} == {"coffee", "taxi"}
+
+
+async def test_bot_get_expenses_supports_limit_and_offset(client):
+    first_response = await create_expense_from_bot(
+        client,
+        telegram_id=300,
+        title="coffee",
+        amount_rubles="100.00",
+    )
+    second_response = await create_expense_from_bot(
+        client,
+        telegram_id=300,
+        title="taxi",
+        amount_rubles="200.00",
+    )
+
+    first_page_response = await get_expenses_for_bot(
+        client,
+        telegram_id=300,
+        limit=1,
+        offset=0,
+        headers=bot_headers(),
+    )
+    second_page_response = await get_expenses_for_bot(
+        client,
+        telegram_id=300,
+        limit=1,
+        offset=1,
+        headers=bot_headers(),
+    )
+
+    assert first_page_response.status_code == 200
+    assert second_page_response.status_code == 200
+
+    first_page = first_page_response.json()
+    second_page = second_page_response.json()
+    assert len(first_page) == 1
+    assert len(second_page) == 1
+    assert first_page[0]["id"] != second_page[0]["id"]
+    assert {first_page[0]["id"], second_page[0]["id"]} == {
+        first_response.json()["id"],
+        second_response.json()["id"],
+    }
 
 
 async def test_bot_create_expense_with_valid_authorization_creates_user_and_expense(

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.core.security import verify_bot_api_token
 from app.expenses.dependencies import get_expense_service
@@ -23,3 +23,17 @@ async def create_expense_from_bot(
     service: ExpenseService = Depends(get_expense_service),
 ):
     return await service.create_from_bot(data)
+
+
+@router.get("", response_model=list[ExpenseRead])
+async def get_expenses_for_bot(
+    telegram_id: int = Query(gt=0),
+    limit: int = Query(default=10, ge=1, le=20),
+    offset: int = Query(default=0, ge=0),
+    service: ExpenseService = Depends(get_expense_service),
+):
+    return await service.get_by_telegram_id(
+        telegram_id=telegram_id,
+        limit=limit,
+        offset=offset,
+    )

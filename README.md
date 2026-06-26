@@ -44,28 +44,42 @@ migrations/                # Alembic миграции
 
 Создать файл `.env`:
 
-```env
-DB_NAME=tg_tracker
-DB_USER=user
-DB_PASS=pass
-DB_HOST=localhost
-DB_PORT=5432
+Use separate env files for Docker development and production:
 
-BOT_TOKEN=your_bot_token
+```bash
+cp .env.dev.example .env.dev
+cp .env.prod.example .env.prod
 ```
+
+Inside Docker containers always use `DB_HOST=db`, `DB_PORT=5432`, and
+`API_BASE_URL=http://api:8000`. `DB_HOST_PORT` is only for exposing PostgreSQL
+to the host in dev.
 
 ---
 
 ## Запуск PostgreSQL
 
+Development:
+
 ```bash
-docker compose up -d
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml exec api uv run alembic upgrade head
 ```
 
 Проверить контейнеры:
 
+Production:
+
 ```bash
-docker compose ps
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec api uv run alembic upgrade head
+```
+
+Check rendered config:
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml config
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml config
 ```
 
 ---
@@ -119,8 +133,22 @@ http://127.0.0.1:8000/docs
 Создать расход:
 
 ```http
-POST /expenses
+POST /bot/expenses
+Authorization: Bearer <BOT_API_TOKEN>
 ```
+
+Получить расходы текущего Telegram-пользователя по `telegram_id`:
+
+```http
+GET /bot/expenses?telegram_id=<telegram_id>&limit=10&offset=0
+Authorization: Bearer <BOT_API_TOKEN>
+```
+
+`POST /bot/expenses` и `GET /bot/expenses` защищены `BOT_API_TOKEN`.
+
+`BOT_TOKEN` is used only by aiogram. `BOT_API_TOKEN` is the internal bot-to-API
+secret. `telegram_id` is the external Telegram user identifier; `user_id` is the
+internal UUID stored in this app.
 
 Получить расходы пользователя:
 
@@ -131,7 +159,7 @@ GET /expenses/user/{user_id}
 Изменить расход:
 
 ```http
-PATCH /expenses/{expense_id}
+PUT /expenses/{expense_id}
 ```
 
 Удалить расход:
