@@ -1,0 +1,10 @@
+services:
+  db:
+    ports:
+      - "${DB_HOST_PORT:-5434}:5432"
+
+  api:
+    env_file:
+      - ${APP_ENV_FILE:-.env.dev}
+    ports:
+      - "8000:8000"

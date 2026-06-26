@@ -1,58 +1,194 @@
-# TG Tracker
+# TG Tracker FastAPI
 
-Минимальное приложение для учета расходов через Telegram-бота.
+Учебное приложение для учета расходов через FastAPI, PostgreSQL и Telegram Bot.
 
 ## Стек
 
-- Python
-- FastAPI
-- PostgreSQL
-- SQLAlchemy
-- aiogram
-- Docker Compose
-- Ruff
+* Python 3.12+
+* FastAPI
+* PostgreSQL
+* SQLAlchemy Async
+* Alembic
+* Pydantic Settings
+* aiogram
+* Docker Compose
+* uv
+* Ruff
 
-## Возможности
+---
 
-- Добавить расход через Telegram: `/add coffee 300`
-- Посмотреть свои расходы: `/list`
-- Создать расход через FastAPI
-- Получить расходы пользователя
-- Удалить расход
+## Структура проекта
+
+```text
+app/
+├── main.py                # Точка входа FastAPI
+├── core/
+│   └── config.py          # Настройки приложения
+├── db/
+│   ├── base.py            # Declarative Base
+│   └── session.py         # Engine, Session, get_db
+├── expenses/
+│   ├── models.py          # SQLAlchemy ORM модели
+│   ├── schemas.py         # Pydantic схемы
+│   ├── repository.py      # Работа с БД
+│   ├── service.py         # Бизнес-логика
+│   └── router.py          # API ручки
+└── bot/                   # Telegram Bot
+
+migrations/                # Alembic миграции
+```
+
+---
 
 ## Переменные окружения
 
-
-Создать `.env` в корне проекта:
+Создать файл `.env`:
 
 ```env
-POSTGRES_DB=tracker
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=your_password
-DATABASE_URL=postgresql+psycopg://admin:your_password@127.0.0.1:5432/tracker
+DB_NAME=tg_tracker
+DB_USER=user
+DB_PASS=pass
+DB_HOST=localhost
+DB_PORT=5432
+
 BOT_TOKEN=your_bot_token
 ```
 
-## Поднять PostgreSQL
+---
+
+## Запуск PostgreSQL
+
 ```bash
 docker compose up -d
 ```
 
-
-## Запуск FastAPI
+Проверить контейнеры:
 
 ```bash
-uvicorn app.main:app --reload
+docker compose ps
 ```
 
-## Swagger
+---
 
+## Установка зависимостей
+
+```bash
+uv sync
+```
+
+---
+
+## Создание миграций
+
+Создать новую миграцию:
+
+```bash
+alembic revision --autogenerate -m "Initial migration"
+```
+
+Применить миграции:
+
+```bash
+alembic upgrade head
+```
+
+Показать текущую версию:
+
+```bash
+alembic current
+```
+
+---
+
+## Запуск приложения из app/
+
+```bash
+python main.py
+```
+
+Документация Swagger:
+
+```text
 http://127.0.0.1:8000/docs
+```
 
-## Запуск телеграмм бота
+---
 
-python bot.py
+## API
 
-## Проверка линтером
+Создать расход:
 
+```http
+POST /expenses
+```
+
+Получить расходы пользователя:
+
+```http
+GET /expenses/user/{user_id}
+```
+
+Изменить расход:
+
+```http
+PATCH /expenses/{expense_id}
+```
+
+Удалить расход:
+
+```http
+DELETE /expenses/{expense_id}
+```
+
+---
+
+## Проверка качества кода
+
+Проверка Ruff:
+
+```bash
 ruff check .
+```
+
+Автоисправление:
+
+```bash
+ruff check . --fix
+```
+
+---
+
+## Полезные команды
+
+Создать виртуальное окружение:
+
+```bash
+uv venv
+```
+
+Активировать venv:
+
+```bash
+.venv\Scripts\activate
+```
+
+Добавить зависимость:
+
+```bash
+uv add package_name
+```
+
+Добавить dev-зависимость:
+
+```bash
+uv add --dev package_name
+```
+
+Обновить lock-файл:
+
+```bash
+uv sync
+```
+
+---
+

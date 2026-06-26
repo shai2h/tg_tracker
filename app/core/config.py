@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_PORT: int
 
+    DB_ECHO: bool = False
+
+    BOT_TOKEN: str
+
     @property
     def DB_URL(self) -> str:
         return (
@@ -21,10 +25,17 @@ class Settings(BaseSettings):
         )
 
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env",
+        env_file=(BASE_DIR / ".env", BASE_DIR / ".env.dev"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
 
-settings = Settings()
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings

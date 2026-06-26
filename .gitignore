@@ -1,14 +1,49 @@
+# Virtual environment
+
 .venv/
-__pycache__/
+
+# Python
+
+**pycache**/
 *.py[cod]
 
+# Environment variables
+
 .env
-.env.local
+.env.dev
+.env.prod
+
+# IDE
 
 .idea/
 .vscode/
 
+# Ruff
+
 .ruff_cache/
+
+# Pytest
+
 .pytest_cache/
 
+# OS
+
 .DS_Store
+Thumbs.db
+
+# Logs
+
+*.log
+
+# Coverage
+
+.coverage
+htmlcov/
+
+# Alembic (если появится позже)
+
+*.pyc
+
+# Docker volumes (если создашь локально)
+
+postgres_data/

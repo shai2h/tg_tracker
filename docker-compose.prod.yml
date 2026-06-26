@@ -1,0 +1,11 @@
+services:
+  db:
+    restart: always
+
+  api:
+    env_file:
+      - ${APP_ENV_FILE:-.env.prod}
+    ports:
+      - "8000:8000"
+    restart: always
+
