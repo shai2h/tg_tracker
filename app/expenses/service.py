@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.repository import ExpenseRepository
-from app.expenses.schemas import ExpenseUpdate, ExpenseBotCreate
+from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
 from app.llm.classifier import ExpenseCategoryClassifier
 
 
@@ -19,10 +19,10 @@ class ExpenseService:
     def _rubles_to_kopeiki(self, amount_rubles: Decimal) -> int:
         return int(amount_rubles * 100)
 
-    async def create_from_bot(self, data: ExpenseBotCreate):
+    async def create(self, telegram_id: int, username: str | None, data: ExpenseCreate):
         user = await self.repository.get_or_create_user(
-            telegram_id=data.telegram_id,
-            username=data.username,
+            telegram_id=telegram_id,
+            username=username,
         )
 
         category = await self.classifier.classify(data.title)
@@ -34,6 +34,23 @@ class ExpenseService:
             category=category,
         )
 
+    async def get_by_telegram_id(
+        self,
+        telegram_id: int,
+        username: str | None,
+        limit: int,
+        offset: int,
+    ):
+        user = await self.repository.get_or_create_user(
+            telegram_id=telegram_id,
+            username=username,
+        )
+        return await self.repository.get_by_user_id(
+            user_id=user.id,
+            limit=limit,
+            offset=offset,
+        )
+
     async def get_by_user_id(
         self,
         user_id: UUID,
@@ -42,23 +59,6 @@ class ExpenseService:
     ):
         return await self.repository.get_by_user_id(
             user_id=user_id,
-            limit=limit,
-            offset=offset,
-        )
-
-    async def get_by_telegram_id(
-        self,
-        telegram_id: int,
-        limit: int,
-        offset: int,
-    ):
-        user = await self.repository.get_user_by_telegram_id(telegram_id)
-
-        if user is None:
-            return []
-
-        return await self.repository.get_by_user_id(
-            user_id=user.id,
             limit=limit,
             offset=offset,
         )

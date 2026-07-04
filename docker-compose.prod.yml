@@ -9,7 +9,3 @@ services:
       - "8000:8000"
     restart: always
 
-  bot:
-    env_file:
-      - ${APP_ENV_FILE:-.env.prod}
-    restart: always
