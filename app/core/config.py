@@ -17,6 +17,16 @@ class Settings(BaseSettings):
 
     BOT_TOKEN: str
 
+    GIGACHAT_AUTH_KEY: str
+    GIGACHAT_SCOPE: str = "GIGACHAT_API_PERS"
+    GIGACHAT_MODEL: str = "GigaChat"
+    GIGACHAT_OAUTH_URL: str = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+    GIGACHAT_API_BASE_URL: str = "https://gigachat.devices.sberbank.ru/api/v1"
+    GIGACHAT_VERIFY_SSL: bool = False
+    GIGACHAT_TIMEOUT_SECONDS: int = 30
+    GIGACHAT_MAX_TOKENS: int = 50
+    GIGACHAT_TEMPERATURE: float = 0.1
+
     @property
     def DB_URL(self) -> str:
         return (
