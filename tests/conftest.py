@@ -1,10 +1,17 @@
 import pytest_asyncio
+from fastapi import Request
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.db.base import Base
 from app.db.session import get_db
+from app.expenses.dependencies import get_gigachat_provider
 from app.main import app
+
+
+class NoOpGigaChatProvider:
+    async def complete(self, prompt: str) -> str:
+        return '{"category": "другое", "confidence": 0.0}'
 
 
 @pytest_asyncio.fixture
@@ -40,6 +47,12 @@ async def client(db_session_factory):
                 raise
 
     app.dependency_overrides[get_db] = override_get_db
+    fake_provider = NoOpGigaChatProvider()
+
+    def override_get_gigachat_provider(request: Request):
+        return fake_provider
+
+    app.dependency_overrides[get_gigachat_provider] = override_get_gigachat_provider
 
     transport = ASGITransport(app=app)
 
