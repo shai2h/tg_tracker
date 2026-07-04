@@ -12,11 +12,15 @@ sys.path.append(str(Path(__file__).parent.parent))
 from app.core.config import get_settings
 from app.db.session import get_session_factory
 from app.expenses.router import router as router_expenses
+from app.llm.gigachat import build_gigachat_provider
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    provider = build_gigachat_provider(settings)
+    app.state.gigachat_provider = provider
+
     bot = Bot(token=settings.BOT_TOKEN)
     session_factory = get_session_factory()
 
@@ -35,6 +39,7 @@ async def lifespan(app: FastAPI):
     polling_task.cancel()
     await asyncio.gather(polling_task, return_exceptions=True)
     await bot.session.close()
+    await provider.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
