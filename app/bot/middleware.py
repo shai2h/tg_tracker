@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.expenses.repository import ExpenseRepository
 from app.expenses.service import ExpenseService
+from app.llm.queue import ClassificationQueue
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,14 @@ class ServiceMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         session_factory: async_sessionmaker = data["session_factory"]
+        queue: ClassificationQueue = data["classification_queue"]
 
         async with session_factory() as session:
-            data["service"] = ExpenseService(ExpenseRepository(session))
+            data["service"] = ExpenseService(
+                ExpenseRepository(session),
+                queue,
+                session_factory,
+            )
             try:
                 result = await handler(event, data)
                 await session.commit()

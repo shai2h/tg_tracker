@@ -1,3 +1,4 @@
+import asyncio
 import re
 from decimal import Decimal
 
@@ -65,11 +66,23 @@ async def add_expense(message: Message, service: ExpenseService):
         return
 
     title, amount = parsed
+    category_future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
 
     await service.create(
         telegram_id=message.from_user.id,
         username=message.from_user.username,
         data=ExpenseCreate(title=title, amount_rubles=amount),
+        category_future=category_future,
     )
 
-    await message.answer(f"Сохранил: {title} — {amount} ₽")
+    await message.answer(
+        f"Сохранил: {title} — {amount} ₽\n"
+        "Определяю категорию..."
+    )
+
+    try:
+        category = await asyncio.wait_for(category_future, timeout=3.0)
+    except asyncio.TimeoutError:
+        return
+
+    await message.answer(f"Категория: {category} ✓")

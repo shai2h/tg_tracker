@@ -1,29 +1,61 @@
 from uuid import UUID
 from decimal import Decimal
+import asyncio
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.repository import ExpenseRepository
 from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
+from app.llm.queue import ClassificationQueue
 
 
 class ExpenseService:
-    def __init__(self, repository: ExpenseRepository):
+    def __init__(
+        self,
+        repository: ExpenseRepository,
+        queue: ClassificationQueue,
+        session_factory: async_sessionmaker[AsyncSession],
+    ):
         self.repository = repository
+        self.queue = queue
+        self._session_factory = session_factory
 
     def _rubles_to_kopeiki(self, amount_rubles: Decimal) -> int:
         return int(amount_rubles * 100)
 
-    async def create(self, telegram_id: int, username: str | None, data: ExpenseCreate):
+    async def create(
+        self,
+        telegram_id: int,
+        username: str | None,
+        data: ExpenseCreate,
+        category_future: asyncio.Future[str] | None = None,
+    ):
         user = await self.repository.get_or_create_user(
             telegram_id=telegram_id,
             username=username,
         )
 
-        return await self.repository.create(
+        expense = await self.repository.create(
             user_id=user.id,
             title=data.title,
             amount_kopeiki=self._rubles_to_kopeiki(data.amount_rubles),
+            category=None,
         )
+
+        expense_id = expense.id
+
+        async def on_done(category: str) -> None:
+            async with self._session_factory() as session:
+                repository = ExpenseRepository(session)
+                await repository.update_category(expense_id, category)
+                await session.commit()
+
+            if category_future is not None and not category_future.done():
+                category_future.set_result(category)
+
+        await self.queue.enqueue(expense_id, data.title, on_done)
+
+        return expense
 
     async def get_by_telegram_id(
         self,
