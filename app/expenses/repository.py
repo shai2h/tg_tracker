@@ -11,11 +11,18 @@ class ExpenseRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, user_id: UUID, title: str, amount_kopeiki: int):
+    async def create(
+        self,
+        user_id: UUID,
+        title: str,
+        amount_kopeiki: int,
+        category: str | None = None,
+    ):
         expense = ExpenseOrm(
             user_id=user_id,
             title=title,
             amount_kopeiki=amount_kopeiki,
+            category=category,
         )
 
         self.session.add(expense)
@@ -66,6 +73,14 @@ class ExpenseRepository:
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
+
+    async def update_category(self, expense_id: UUID, category: str) -> None:
+        stmt = (
+            update(ExpenseOrm)
+            .where(ExpenseOrm.id == expense_id)
+            .values(category=category)
+        )
+        await self.session.execute(stmt)
 
     async def delete(self, expense_id: UUID):
         stmt = (
