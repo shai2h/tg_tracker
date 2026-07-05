@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import pytest_asyncio
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
@@ -5,13 +7,23 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 
 from app.db.base import Base
 from app.db.session import get_db
-from app.expenses.dependencies import get_gigachat_provider
+from app.expenses.dependencies import get_classification_queue, get_gigachat_provider
 from app.main import app
 
 
 class NoOpGigaChatProvider:
     async def complete(self, prompt: str) -> str:
         return '{"category": "другое", "confidence": 0.0}'
+
+
+class NoOpClassificationQueue:
+    async def enqueue(
+        self,
+        expense_id: UUID,
+        title: str,
+        on_done,
+    ) -> None:
+        pass
 
 
 @pytest_asyncio.fixture
@@ -53,6 +65,12 @@ async def client(db_session_factory):
         return fake_provider
 
     app.dependency_overrides[get_gigachat_provider] = override_get_gigachat_provider
+    fake_queue = NoOpClassificationQueue()
+
+    def override_get_classification_queue(request: Request):
+        return fake_queue
+
+    app.dependency_overrides[get_classification_queue] = override_get_classification_queue
 
     transport = ASGITransport(app=app)
 
