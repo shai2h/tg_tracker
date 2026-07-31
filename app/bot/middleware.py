@@ -6,8 +6,10 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.expenses.dependencies import get_gigachat_provider
 from app.expenses.repository import ExpenseRepository
 from app.expenses.service import ExpenseService
+from app.llm.classifier import ExpenseCategoryClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,8 @@ class ServiceMiddleware(BaseMiddleware):
         session_factory: async_sessionmaker = data["session_factory"]
 
         async with session_factory() as session:
-            data["service"] = ExpenseService(ExpenseRepository(session))
+            classifier = ExpenseCategoryClassifier(get_gigachat_provider())
+            data["service"] = ExpenseService(ExpenseRepository(session), classifier)
             try:
                 result = await handler(event, data)
                 await session.commit()

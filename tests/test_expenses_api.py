@@ -7,6 +7,7 @@ from app.expenses.models import ExpenseOrm, UserOrm
 from app.expenses.repository import ExpenseRepository
 from app.expenses.schemas import ExpenseCreate
 from app.expenses.service import ExpenseService
+from tests.conftest import NoOpClassifier
 
 
 async def create_expense(
@@ -18,7 +19,7 @@ async def create_expense(
     amount_rubles: str = "150.50",
 ) -> ExpenseOrm:
     async with db_session_factory() as session:
-        service = ExpenseService(ExpenseRepository(session))
+        service = ExpenseService(ExpenseRepository(session), NoOpClassifier())
         expense = await service.create(
             telegram_id=telegram_id,
             username=username,

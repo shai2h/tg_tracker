@@ -4,11 +4,17 @@ from decimal import Decimal
 from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.repository import ExpenseRepository
 from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
+from app.llm.classifier import ExpenseCategoryClassifier
 
 
 class ExpenseService:
-    def __init__(self, repository: ExpenseRepository):
+    def __init__(
+        self,
+        repository: ExpenseRepository,
+        classifier: ExpenseCategoryClassifier,
+    ):
         self.repository = repository
+        self.classifier = classifier
 
     def _rubles_to_kopeiki(self, amount_rubles: Decimal) -> int:
         return int(amount_rubles * 100)
@@ -19,10 +25,13 @@ class ExpenseService:
             username=username,
         )
 
+        category = await self.classifier.classify(data.title)
+
         return await self.repository.create(
             user_id=user.id,
             title=data.title,
             amount_kopeiki=self._rubles_to_kopeiki(data.amount_rubles),
+            category=category,
         )
 
     async def get_by_telegram_id(
