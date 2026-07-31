@@ -1,6 +1,7 @@
 from uuid import UUID
 from decimal import Decimal
 import asyncio
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.expenses.exceptions import ExpenseNotFoundError
@@ -19,6 +20,8 @@ class ExpenseService:
         self.repository = repository
         self.queue = queue
         self._session_factory = session_factory
+        self.pending_enqueue: Callable[[], Awaitable[None]] | None = None
+        self.pending_category_future: asyncio.Future[str] | None = None
 
     def _rubles_to_kopeiki(self, amount_rubles: Decimal) -> int:
         return int(amount_rubles * 100)
@@ -43,6 +46,8 @@ class ExpenseService:
         )
 
         expense_id = expense.id
+        title = data.title
+        self.pending_category_future = category_future
 
         async def on_done(category: str) -> None:
             async with self._session_factory() as session:
@@ -53,8 +58,10 @@ class ExpenseService:
             if category_future is not None and not category_future.done():
                 category_future.set_result(category)
 
-        await self.queue.enqueue(expense_id, data.title, on_done)
+        async def enqueue() -> None:
+            await self.queue.enqueue(expense_id, title, on_done)
 
+        self.pending_enqueue = enqueue
         return expense
 
     async def get_by_telegram_id(

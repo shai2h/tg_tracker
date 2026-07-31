@@ -79,10 +79,3 @@ async def add_expense(message: Message, service: ExpenseService):
         f"Сохранил: {title} — {amount} ₽\n"
         "Определяю категорию..."
     )
-
-    try:
-        category = await asyncio.wait_for(category_future, timeout=3.0)
-    except asyncio.TimeoutError:
-        return
-
-    await message.answer(f"Категория: {category} ✓")
