@@ -1,5 +1,5 @@
 from fastapi import Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.session import get_db, get_session_factory
 from app.expenses.repository import ExpenseRepository
@@ -32,5 +32,6 @@ def get_classification_queue(request: Request) -> ClassificationQueue:
 def get_expense_service(
     repository: ExpenseRepository = Depends(get_expense_repository),
     queue: ClassificationQueue = Depends(get_classification_queue),
+    session_factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
 ) -> ExpenseService:
-    return ExpenseService(repository, queue, get_session_factory())
+    return ExpenseService(repository, queue, session_factory)

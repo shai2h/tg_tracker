@@ -1,19 +1,13 @@
 from uuid import UUID
 
 import pytest_asyncio
-from fastapi import Request
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.db.base import Base
-from app.db.session import get_db
-from app.expenses.dependencies import get_classification_queue, get_gigachat_provider
+from app.db.session import get_db, get_session_factory
+from app.expenses.dependencies import get_classification_queue
 from app.main import app
-
-
-class NoOpGigaChatProvider:
-    async def complete(self, prompt: str) -> str:
-        return '{"category": "другое", "confidence": 0.0}'
 
 
 class NoOpClassificationQueue:
@@ -58,18 +52,14 @@ async def client(db_session_factory):
                 await session.rollback()
                 raise
 
+    def override_get_session_factory():
+        return db_session_factory
+
+    def override_get_classification_queue() -> NoOpClassificationQueue:
+        return NoOpClassificationQueue()
+
     app.dependency_overrides[get_db] = override_get_db
-    fake_provider = NoOpGigaChatProvider()
-
-    def override_get_gigachat_provider(request: Request):
-        return fake_provider
-
-    app.dependency_overrides[get_gigachat_provider] = override_get_gigachat_provider
-    fake_queue = NoOpClassificationQueue()
-
-    def override_get_classification_queue(request: Request):
-        return fake_queue
-
+    app.dependency_overrides[get_session_factory] = override_get_session_factory
     app.dependency_overrides[get_classification_queue] = override_get_classification_queue
 
     transport = ASGITransport(app=app)
