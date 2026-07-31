@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.llm.classifier import ExpenseCategoryClassifier
+from app.llm.exceptions import RetryableLLMError
 
 logger = logging.getLogger(__name__)
 
@@ -77,11 +78,20 @@ class ClassificationQueue:
             )
 
     async def _classify_with_retries(self, title: str) -> str:
-        for _ in range(_MAX_ATTEMPTS):
+        for attempt in range(_MAX_ATTEMPTS):
             try:
                 category, _confidence = await self._classifier.classify(title)
                 return category
-            except Exception:
+            except RetryableLLMError:
+                if attempt == _MAX_ATTEMPTS - 1:
+                    logger.exception(
+                        "classification failed after %s attempts title=%s",
+                        _MAX_ATTEMPTS,
+                        title,
+                    )
                 continue
+            except Exception:
+                logger.exception("non-retryable classification error title=%s", title)
+                break
 
         return _UNKNOWN_CATEGORY

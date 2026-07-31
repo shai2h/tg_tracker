@@ -4,6 +4,7 @@ import uuid
 import httpx
 
 from app.core.config import Settings
+from app.llm.exceptions import RetryableLLMError
 
 
 class GigaChatProvider:
@@ -45,6 +46,24 @@ class GigaChatProvider:
             await self._client.aclose()
             self._client = None
 
+    def _raise_for_status(self, response: httpx.Response) -> None:
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code >= 500:
+                raise RetryableLLMError("provider http 5xx") from exc
+            raise
+
+    async def _post(self, url: str, **kwargs) -> httpx.Response:
+        client = self._get_client()
+        try:
+            response = await client.post(url, **kwargs)
+        except httpx.RequestError as exc:
+            raise RetryableLLMError("provider request failed") from exc
+
+        self._raise_for_status(response)
+        return response
+
     async def _get_access_token(self) -> str:
         if (
             self._access_token is not None
@@ -53,8 +72,7 @@ class GigaChatProvider:
         ):
             return self._access_token
 
-        client = self._get_client()
-        response = await client.post(
+        response = await self._post(
             self.oauth_url,
             headers={
                 "Authorization": f"Basic {self.api_key}",
@@ -63,7 +81,6 @@ class GigaChatProvider:
             },
             data={"scope": self.scope},
         )
-        response.raise_for_status()
         payload = response.json()
         expires_in = payload.get("expires_in", 1800)
         self._access_token = payload["access_token"]
@@ -72,8 +89,7 @@ class GigaChatProvider:
 
     async def complete(self, prompt: str) -> str:
         access_token = await self._get_access_token()
-        client = self._get_client()
-        response = await client.post(
+        response = await self._post(
             f"{self.api_base_url}/chat/completions",
             headers={
                 "Authorization": f"Bearer {access_token}",
@@ -86,7 +102,6 @@ class GigaChatProvider:
                 "max_tokens": self.max_tokens,
             },
         )
-        response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
 
 

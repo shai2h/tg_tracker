@@ -3,6 +3,7 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
+from app.llm.exceptions import RetryableLLMError
 from app.llm.json_models import ExpenseClassificationResponse
 
 CATEGORIES = (
@@ -40,20 +41,16 @@ class ExpenseCategoryClassifier:
 
     async def classify(self, title: str) -> tuple[str, float]:
         prompt = _CLASSIFY_PROMPT.format(title=title)
-
-        try:
-            raw = await self.provider.complete(prompt)
-        except Exception:
-            return ("другое", 0.0)
+        raw = await self.provider.complete(prompt)
 
         if not raw or not raw.strip():
-            return ("другое", 0.0)
+            raise RetryableLLMError("empty provider response")
 
         try:
             payload = json.loads(raw.strip())
             parsed = ExpenseClassificationResponse.model_validate(payload)
-        except (json.JSONDecodeError, ValidationError, TypeError, ValueError):
-            return ("другое", 0.0)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            raise RetryableLLMError("invalid classification response") from exc
 
         category = parsed.category.casefold().strip().replace("е\u0308", "ё")
 
