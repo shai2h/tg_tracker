@@ -4,6 +4,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.models import ExpenseOrm, UserOrm
 
 
@@ -79,8 +80,12 @@ class ExpenseRepository:
             update(ExpenseOrm)
             .where(ExpenseOrm.id == expense_id)
             .values(category=category)
+            .returning(ExpenseOrm.id)
         )
-        await self.session.execute(stmt)
+        result = await self.session.execute(stmt)
+
+        if result.scalar_one_or_none() is None:
+            raise ExpenseNotFoundError
 
     async def delete(self, expense_id: UUID):
         stmt = (
