@@ -4,7 +4,10 @@ from typing import Protocol
 from pydantic import ValidationError
 
 from app.llm.exceptions import RetryableLLMError
-from app.llm.json_models import ExpenseClassificationResponse
+from app.llm.json_models import (
+    CLASSIFICATION_RESPONSE_FORMAT,
+    ExpenseClassificationResponse,
+)
 
 CATEGORIES = (
     "кафе",
@@ -25,14 +28,16 @@ _CLASSIFY_PROMPT = (
     "Классифицируй расход по одной категории.\n"
     f"Название расхода: {{title}}\n"
     f"Допустимые категории: {_CATEGORIES_PROMPT}\n"
-    'Верни ТОЛЬКО JSON без markdown и пояснений: '
-    '{{"category": "<категория>", "confidence": <число от 0.0 до 1.0>}}\n'
-    "confidence — уверенность модели от 0.0 до 1.0."
+    "Оцени уверенность выбора категории числом от 0.0 до 1.0."
 )
 
 
 class LLMProvider(Protocol):
-    async def complete(self, prompt: str) -> str: ...
+    async def complete(
+        self,
+        prompt: str,
+        response_format: dict[str, object] | None = None,
+    ) -> str: ...
 
 
 class ExpenseCategoryClassifier:
@@ -41,7 +46,10 @@ class ExpenseCategoryClassifier:
 
     async def classify(self, title: str) -> tuple[str, float]:
         prompt = _CLASSIFY_PROMPT.format(title=title)
-        raw = await self.provider.complete(prompt)
+        raw = await self.provider.complete(
+            prompt,
+            response_format=CLASSIFICATION_RESPONSE_FORMAT,
+        )
 
         if not raw or not raw.strip():
             raise RetryableLLMError("empty provider response")

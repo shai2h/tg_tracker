@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -5,6 +6,7 @@ import pytest
 
 from app.llm.exceptions import RetryableLLMError
 from app.llm.gigachat import GigaChatProvider
+from app.llm.json_models import CLASSIFICATION_RESPONSE_FORMAT
 
 
 def _provider() -> GigaChatProvider:
@@ -18,6 +20,19 @@ def _provider() -> GigaChatProvider:
         timeout_seconds=5,
         max_tokens=50,
         temperature=0.1,
+    )
+
+
+def _success_response() -> httpx.Response:
+    request = httpx.Request("POST", "https://example.test/api/chat/completions")
+    return httpx.Response(
+        200,
+        request=request,
+        json={
+            "choices": [
+                {"message": {"content": '{"category": "кафе", "confidence": 0.9}'}}
+            ]
+        },
     )
 
 
@@ -81,3 +96,37 @@ async def test_oauth_maps_http_500_to_retryable():
 
     with pytest.raises(RetryableLLMError):
         await provider.complete("привет")
+
+
+@pytest.mark.asyncio
+async def test_complete_without_response_format_omits_field():
+    provider = _provider()
+    provider._access_token = "token"
+    provider._access_token_expires_at = 10**12
+    post = AsyncMock(return_value=_success_response())
+    _mock_client(provider, post)
+
+    await provider.complete("привет")
+
+    payload = post.await_args.kwargs["json"]
+    assert "response_format" not in payload
+
+
+@pytest.mark.asyncio
+async def test_complete_with_response_format_passes_top_level_without_mutation():
+    provider = _provider()
+    provider._access_token = "token"
+    provider._access_token_expires_at = 10**12
+    post = AsyncMock(return_value=_success_response())
+    _mock_client(provider, post)
+
+    response_format = copy.deepcopy(CLASSIFICATION_RESPONSE_FORMAT)
+    original = copy.deepcopy(response_format)
+
+    await provider.complete("привет", response_format=response_format)
+
+    payload = post.await_args.kwargs["json"]
+    assert payload["response_format"] == CLASSIFICATION_RESPONSE_FORMAT
+    assert "response_format" in payload
+    assert payload["response_format"] is response_format
+    assert response_format == original

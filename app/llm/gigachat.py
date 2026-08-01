@@ -87,20 +87,28 @@ class GigaChatProvider:
         self._access_token_expires_at = time.monotonic() + max(expires_in - 60, 0)
         return self._access_token
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(
+        self,
+        prompt: str,
+        response_format: dict[str, object] | None = None,
+    ) -> str:
         access_token = await self._get_access_token()
+        payload: dict[str, object] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        if response_format is not None:
+            payload["response_format"] = response_format
+
         response = await self._post(
             f"{self.api_base_url}/chat/completions",
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": self.temperature,
-                "max_tokens": self.max_tokens,
-            },
+            json=payload,
         )
         return response.json()["choices"][0]["message"]["content"]
 
