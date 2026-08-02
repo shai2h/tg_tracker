@@ -16,6 +16,7 @@ class NoOpClassificationQueue:
         expense_id: UUID,
         title: str,
         on_done,
+        on_error,
     ) -> None:
         pass
 

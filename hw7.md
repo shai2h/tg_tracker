@@ -233,11 +233,12 @@ from app.db.session import get_session_factory
 from app.expenses.repository import ExpenseRepository
 from app.expenses.service import ExpenseService
 
+
 async def cmd_add(args):
     async with get_session_factory()() as session:
         service = ExpenseService(
             repository=ExpenseRepository(session),
-            queue=NoOpClassificationQueue(),  # CLI не классифицирует
+            classification_queue=NoOpClassificationQueue(),  # CLI не классифицирует
         )
         expense = await service.create(
             telegram_id=args.telegram_id,

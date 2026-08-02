@@ -5,20 +5,18 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.llm.classifier import ExpenseCategoryClassifier
-from app.llm.exceptions import RetryableLLMError
 
 logger = logging.getLogger(__name__)
 
 _STOP = object()
-_MAX_ATTEMPTS = 3
-_UNKNOWN_CATEGORY = "неизвестно"
 
 
 @dataclass
 class _ClassificationTask:
     expense_id: UUID
     title: str
-    on_done: Callable[[str], Awaitable[None]]
+    on_done: Callable[[str, float], Awaitable[None]]
+    on_error: Callable[[Exception], Awaitable[None]]
 
 
 class ClassificationQueue:
@@ -30,13 +28,11 @@ class ClassificationQueue:
     async def start(self) -> None:
         if self._worker_task is not None and not self._worker_task.done():
             return
-
         self._worker_task = asyncio.create_task(self._worker())
 
     async def stop(self) -> None:
         if self._worker_task is None:
             return
-
         await self._queue.put(_STOP)
         await self._worker_task
         self._worker_task = None
@@ -45,13 +41,15 @@ class ClassificationQueue:
         self,
         expense_id: UUID,
         title: str,
-        on_done: Callable[[str], Awaitable[None]],
+        on_done: Callable[[str, float], Awaitable[None]],
+        on_error: Callable[[Exception], Awaitable[None]],
     ) -> None:
         await self._queue.put(
             _ClassificationTask(
                 expense_id=expense_id,
                 title=title,
                 on_done=on_done,
+                on_error=on_error,
             )
         )
 
@@ -61,37 +59,17 @@ class ClassificationQueue:
             try:
                 if item is _STOP:
                     break
-
                 await self._process_task(item)
             finally:
                 self._queue.task_done()
 
     async def _process_task(self, task: _ClassificationTask) -> None:
-        category = await self._classify_with_retries(task.title)
-
         try:
-            await task.on_done(category)
-        except Exception:
-            logger.exception(
-                "on_done failed for expense_id=%s",
-                task.expense_id,
-            )
-
-    async def _classify_with_retries(self, title: str) -> str:
-        for attempt in range(_MAX_ATTEMPTS):
+            category, confidence = await self._classifier.classify(task.title)
+            await task.on_done(category, confidence)
+        except Exception as exc:
+            logger.exception("classification_failed expense_id=%s", task.expense_id)
             try:
-                category, _confidence = await self._classifier.classify(title)
-                return category
-            except RetryableLLMError:
-                if attempt == _MAX_ATTEMPTS - 1:
-                    logger.exception(
-                        "classification failed after %s attempts title=%s",
-                        _MAX_ATTEMPTS,
-                        title,
-                    )
-                continue
+                await task.on_error(exc)
             except Exception:
-                logger.exception("non-retryable classification error title=%s", title)
-                break
-
-        return _UNKNOWN_CATEGORY
+                logger.exception("on_error failed expense_id=%s", task.expense_id)

@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from app.llm.exceptions import RetryableLLMError
-from app.llm.queue import ClassificationQueue, _MAX_ATTEMPTS
+from app.llm.queue import ClassificationQueue
 
 
 class SuccessClassifier:
@@ -21,17 +21,6 @@ class FailingClassifier:
         raise RetryableLLMError("classification failed")
 
 
-class FlakyClassifier:
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def classify(self, title: str) -> tuple[str, float]:
-        self.calls += 1
-        if self.calls == 1:
-            raise RetryableLLMError("temporary failure")
-        return ("кафе", 0.95)
-
-
 class CountingClassifier:
     def __init__(self) -> None:
         self.calls = 0
@@ -41,7 +30,7 @@ class CountingClassifier:
         return ("кафе", 0.95)
 
 
-class NonRetryableValueErrorClassifier:
+class ValueErrorClassifier:
     def __init__(self) -> None:
         self.calls = 0
 
@@ -50,81 +39,55 @@ class NonRetryableValueErrorClassifier:
         raise ValueError("business logic error")
 
 
-class NonRetryableRuntimeErrorClassifier:
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def classify(self, title: str) -> tuple[str, float]:
-        self.calls += 1
-        raise RuntimeError("programmer error")
+async def _noop_on_error(exc: Exception) -> None:
+    pass
 
 
 @pytest.mark.asyncio
-async def test_queue_classifies_and_calls_callback_with_category():
+async def test_queue_classifies_and_calls_on_done():
     queue = ClassificationQueue(SuccessClassifier())
     await queue.start()
 
     done = asyncio.Event()
-    result: str | None = None
+    result: tuple[str, float] | None = None
 
-    async def on_done(category: str) -> None:
+    async def on_done(category: str, confidence: float) -> None:
         nonlocal result
-        result = category
+        result = (category, confidence)
         done.set()
 
-    await queue.enqueue(uuid4(), "кофе", on_done)
+    await queue.enqueue(uuid4(), "кофе", on_done, _noop_on_error)
     await done.wait()
 
-    assert result == "кафе"
+    assert result == ("кафе", 0.95)
     await queue.stop()
 
 
 @pytest.mark.asyncio
-async def test_queue_retries_then_succeeds():
-    classifier = FlakyClassifier()
-    queue = ClassificationQueue(classifier)
+async def test_queue_calls_on_error_when_classifier_raises():
+    queue = ClassificationQueue(FailingClassifier())
     await queue.start()
 
     done = asyncio.Event()
-    result: str | None = None
+    error: Exception | None = None
 
-    async def on_done(category: str) -> None:
-        nonlocal result
-        result = category
+    async def on_error(exc: Exception) -> None:
+        nonlocal error
+        error = exc
         done.set()
 
-    await queue.enqueue(uuid4(), "кофе", on_done)
+    async def on_done(category: str, confidence: float) -> None:
+        pass
+
+    await queue.enqueue(uuid4(), "кофе", on_done, on_error)
     await done.wait()
 
-    assert result == "кафе"
-    assert classifier.calls == 2
+    assert isinstance(error, RetryableLLMError)
     await queue.stop()
 
 
 @pytest.mark.asyncio
-async def test_queue_uses_unknown_after_all_attempts_failed():
-    classifier = FailingClassifier()
-    queue = ClassificationQueue(classifier)
-    await queue.start()
-
-    done = asyncio.Event()
-    result: str | None = None
-
-    async def on_done(category: str) -> None:
-        nonlocal result
-        result = category
-        done.set()
-
-    await queue.enqueue(uuid4(), "кофе", on_done)
-    await done.wait()
-
-    assert result == "неизвестно"
-    assert classifier.calls == _MAX_ATTEMPTS
-    await queue.stop()
-
-
-@pytest.mark.asyncio
-async def test_queue_does_not_retry_on_success():
+async def test_queue_on_done_called_exactly_once():
     classifier = CountingClassifier()
     queue = ClassificationQueue(classifier)
     await queue.start()
@@ -132,12 +95,12 @@ async def test_queue_does_not_retry_on_success():
     done = asyncio.Event()
     callback_calls = 0
 
-    async def on_done(category: str) -> None:
+    async def on_done(category: str, confidence: float) -> None:
         nonlocal callback_calls
         callback_calls += 1
         done.set()
 
-    await queue.enqueue(uuid4(), "кофе", on_done)
+    await queue.enqueue(uuid4(), "кофе", on_done, _noop_on_error)
     await done.wait()
 
     assert callback_calls == 1
@@ -146,63 +109,25 @@ async def test_queue_does_not_retry_on_success():
 
 
 @pytest.mark.asyncio
-async def test_queue_attempt_count_matches_max_attempts():
-    classifier = FailingClassifier()
+async def test_queue_calls_on_error_for_value_error():
+    classifier = ValueErrorClassifier()
     queue = ClassificationQueue(classifier)
     await queue.start()
 
     done = asyncio.Event()
+    error: Exception | None = None
 
-    async def on_done(category: str) -> None:
+    async def on_error(exc: Exception) -> None:
+        nonlocal error
+        error = exc
         done.set()
 
-    await queue.enqueue(uuid4(), "кофе", on_done)
+    async def on_done(category: str, confidence: float) -> None:
+        pass
+
+    await queue.enqueue(uuid4(), "кофе", on_done, on_error)
     await done.wait()
 
-    assert classifier.calls == _MAX_ATTEMPTS
-    assert _MAX_ATTEMPTS == 3
-    await queue.stop()
-
-
-@pytest.mark.asyncio
-async def test_queue_does_not_retry_value_error():
-    classifier = NonRetryableValueErrorClassifier()
-    queue = ClassificationQueue(classifier)
-    await queue.start()
-
-    done = asyncio.Event()
-    result: str | None = None
-
-    async def on_done(category: str) -> None:
-        nonlocal result
-        result = category
-        done.set()
-
-    await queue.enqueue(uuid4(), "кофе", on_done)
-    await done.wait()
-
-    assert result == "неизвестно"
-    assert classifier.calls == 1
-    await queue.stop()
-
-
-@pytest.mark.asyncio
-async def test_queue_does_not_retry_runtime_error():
-    classifier = NonRetryableRuntimeErrorClassifier()
-    queue = ClassificationQueue(classifier)
-    await queue.start()
-
-    done = asyncio.Event()
-    result: str | None = None
-
-    async def on_done(category: str) -> None:
-        nonlocal result
-        result = category
-        done.set()
-
-    await queue.enqueue(uuid4(), "кофе", on_done)
-    await done.wait()
-
-    assert result == "неизвестно"
+    assert isinstance(error, ValueError)
     assert classifier.calls == 1
     await queue.stop()

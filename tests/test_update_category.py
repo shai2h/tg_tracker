@@ -18,7 +18,7 @@ class CaptureQueue:
         self.expense_id = None
         self.title = None
 
-    async def enqueue(self, expense_id, title, on_done) -> None:
+    async def enqueue(self, expense_id, title, on_done, on_error) -> None:
         self.expense_id = expense_id
         self.title = title
         self.on_done = on_done
@@ -70,7 +70,6 @@ async def test_update_category_raises_when_expense_missing(db_session_factory):
 @pytest.mark.asyncio
 async def test_on_done_does_not_succeed_when_expense_missing(db_session_factory):
     queue = CaptureQueue()
-    category_future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
 
     async with db_session_factory() as session:
         service = ExpenseService(
@@ -82,13 +81,9 @@ async def test_on_done_does_not_succeed_when_expense_missing(db_session_factory)
             telegram_id=2,
             username="alice",
             data=ExpenseCreate(title="такси", amount_rubles=Decimal("250")),
-            category_future=category_future,
         )
         expense_id = expense.id
-        await session.commit()
 
-    assert service.pending_enqueue is not None
-    await service.pending_enqueue()
     assert queue.on_done is not None
 
     async with db_session_factory() as session:
@@ -98,6 +93,4 @@ async def test_on_done_does_not_succeed_when_expense_missing(db_session_factory)
     assert deleted == expense_id
 
     with pytest.raises(ExpenseNotFoundError):
-        await queue.on_done("транспорт")
-
-    assert category_future.done() is False
+        await queue.on_done("транспорт", 0.95)

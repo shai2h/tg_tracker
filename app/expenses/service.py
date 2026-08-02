@@ -1,13 +1,16 @@
-from uuid import UUID
-from decimal import Decimal
-import asyncio
 from collections.abc import Awaitable, Callable
+from decimal import Decimal
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from app.expenses.exceptions import ExpenseNotFoundError
 from app.expenses.repository import ExpenseRepository
 from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
 from app.llm.queue import ClassificationQueue
+
+_LOW_CONFIDENCE_THRESHOLD = 0.6
+_LOW_CONFIDENCE_CATEGORY = "другое"
 
 
 class ExpenseService:
@@ -20,8 +23,6 @@ class ExpenseService:
         self.repository = repository
         self.queue = queue
         self._session_factory = session_factory
-        self.pending_enqueue: Callable[[], Awaitable[None]] | None = None
-        self.pending_category_future: asyncio.Future[str] | None = None
 
     def _rubles_to_kopeiki(self, amount_rubles: Decimal) -> int:
         return int(amount_rubles * 100)
@@ -31,7 +32,8 @@ class ExpenseService:
         telegram_id: int,
         username: str | None,
         data: ExpenseCreate,
-        category_future: asyncio.Future[str] | None = None,
+        notify: Callable[[str, float], Awaitable[None]] | None = None,
+        notify_error: Callable[[Exception], Awaitable[None]] | None = None,
     ):
         user = await self.repository.get_or_create_user(
             telegram_id=telegram_id,
@@ -45,23 +47,24 @@ class ExpenseService:
             category=None,
         )
 
+        await self.repository.session.commit()
+
         expense_id = expense.id
-        title = data.title
-        self.pending_category_future = category_future
 
-        async def on_done(category: str) -> None:
+        async def on_done(category: str, confidence: float) -> None:
+            stored = category if confidence >= _LOW_CONFIDENCE_THRESHOLD else _LOW_CONFIDENCE_CATEGORY
             async with self._session_factory() as session:
-                repository = ExpenseRepository(session)
-                await repository.update_category(expense_id, category)
+                repo = ExpenseRepository(session)
+                await repo.update_category(expense_id, stored)
                 await session.commit()
+            if notify is not None:
+                await notify(stored, confidence)
 
-            if category_future is not None and not category_future.done():
-                category_future.set_result(category)
+        async def on_error(exc: Exception) -> None:
+            if notify_error is not None:
+                await notify_error(exc)
 
-        async def enqueue() -> None:
-            await self.queue.enqueue(expense_id, title, on_done)
-
-        self.pending_enqueue = enqueue
+        await self.queue.enqueue(expense_id, data.title, on_done, on_error)
         return expense
 
     async def get_by_telegram_id(

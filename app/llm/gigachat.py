@@ -19,6 +19,7 @@ class GigaChatProvider:
         timeout_seconds: int,
         max_tokens: int,
         temperature: float,
+        max_retries: int = 3,
     ):
         self.api_key = api_key
         self.scope = scope
@@ -29,6 +30,7 @@ class GigaChatProvider:
         self.timeout_seconds = timeout_seconds
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self._max_retries = max_retries
         self._access_token: str | None = None
         self._access_token_expires_at: float | None = None
         self._client: httpx.AsyncClient | None = None
@@ -88,6 +90,19 @@ class GigaChatProvider:
         return self._access_token
 
     async def complete(
+        self,
+        prompt: str,
+        response_format: dict[str, object] | None = None,
+    ) -> str:
+        for attempt in range(self._max_retries):
+            try:
+                return await self._do_complete(prompt, response_format)
+            except RetryableLLMError:
+                if attempt == self._max_retries - 1:
+                    raise
+        raise AssertionError("unreachable")
+
+    async def _do_complete(
         self,
         prompt: str,
         response_format: dict[str, object] | None = None,
