@@ -1,12 +1,12 @@
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.config import get_settings
-from app.db.session import get_db
+from app.db.session import get_db, get_session_factory
 from app.expenses.repository import ExpenseRepository
 from app.expenses.service import ExpenseService
 from app.llm.classifier import ExpenseCategoryClassifier
 from app.llm.gigachat import GigaChatProvider
+from app.llm.queue import ClassificationQueue
 
 
 def get_expense_repository(
@@ -15,19 +15,8 @@ def get_expense_repository(
     return ExpenseRepository(session)
 
 
-def get_gigachat_provider() -> GigaChatProvider:
-    settings = get_settings()
-    return GigaChatProvider(
-        api_key=settings.GIGACHAT_AUTH_KEY,
-        scope=settings.GIGACHAT_SCOPE,
-        oauth_url=settings.GIGACHAT_OAUTH_URL,
-        api_base_url=settings.GIGACHAT_API_BASE_URL,
-        model=settings.GIGACHAT_MODEL,
-        verify_ssl=settings.GIGACHAT_VERIFY_SSL,
-        timeout_seconds=settings.GIGACHAT_TIMEOUT_SECONDS,
-        max_tokens=settings.GIGACHAT_MAX_TOKENS,
-        temperature=settings.GIGACHAT_TEMPERATURE,
-    )
+def get_gigachat_provider(request: Request) -> GigaChatProvider:
+    return request.app.state.gigachat_provider
 
 
 def get_expense_category_classifier(
@@ -36,8 +25,13 @@ def get_expense_category_classifier(
     return ExpenseCategoryClassifier(provider)
 
 
+def get_classification_queue(request: Request) -> ClassificationQueue:
+    return request.app.state.classification_queue
+
+
 def get_expense_service(
     repository: ExpenseRepository = Depends(get_expense_repository),
-    classifier: ExpenseCategoryClassifier = Depends(get_expense_category_classifier),
+    queue: ClassificationQueue = Depends(get_classification_queue),
+    session_factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
 ) -> ExpenseService:
-    return ExpenseService(repository, classifier)
+    return ExpenseService(repository, queue, session_factory)

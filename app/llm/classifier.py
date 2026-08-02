@@ -1,6 +1,15 @@
-from app.llm.gigachat import GigaChatProvider
+import json
+from typing import Protocol
 
-ALLOWED_CATEGORIES = {
+from pydantic import ValidationError
+
+from app.llm.exceptions import RetryableLLMError
+from app.llm.json_models import (
+    CLASSIFICATION_RESPONSE_FORMAT,
+    ExpenseClassificationResponse,
+)
+
+CATEGORIES = (
     "кафе",
     "транспорт",
     "жильё",
@@ -11,27 +20,49 @@ ALLOWED_CATEGORIES = {
     "связь",
     "спорт",
     "другое",
-}
+)
+ALLOWED_CATEGORIES = set(CATEGORIES)
 
-_CATEGORIES_PROMPT = ", ".join(sorted(ALLOWED_CATEGORIES))
+_CATEGORIES_PROMPT = ", ".join(CATEGORIES)
 _CLASSIFY_PROMPT = (
     "Классифицируй расход по одной категории.\n"
     f"Название расхода: {{title}}\n"
-    f"Верни ровно одно слово из списка: {_CATEGORIES_PROMPT}.\n"
-    "Без пояснений, только название категории."
+    f"Допустимые категории: {_CATEGORIES_PROMPT}\n"
+    "Оцени уверенность выбора категории числом от 0.0 до 1.0."
 )
 
 
+class LLMProvider(Protocol):
+    async def complete(
+        self,
+        prompt: str,
+        response_format: dict[str, object] | None = None,
+    ) -> str: ...
+
+
 class ExpenseCategoryClassifier:
-    def __init__(self, provider: GigaChatProvider):
+    def __init__(self, provider: LLMProvider):
         self.provider = provider
 
-    async def classify(self, title: str) -> str:
+    async def classify(self, title: str) -> tuple[str, float]:
         prompt = _CLASSIFY_PROMPT.format(title=title)
-        raw = await self.provider.complete(prompt)
-        category = raw.lower().strip().replace("е\u0308", "ё")
+        raw = await self.provider.complete(
+            prompt,
+            response_format=CLASSIFICATION_RESPONSE_FORMAT,
+        )
 
-        if not category or category not in ALLOWED_CATEGORIES:
-            return "другое"
+        if not raw or not raw.strip():
+            raise RetryableLLMError("empty provider response")
 
-        return category
+        try:
+            payload = json.loads(raw.strip())
+            parsed = ExpenseClassificationResponse.model_validate(payload)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            raise RetryableLLMError("invalid classification response") from exc
+
+        category = parsed.category.casefold().strip().replace("е\u0308", "ё")
+
+        if category not in ALLOWED_CATEGORIES:
+            return ("другое", parsed.confidence)
+
+        return (category, parsed.confidence)
